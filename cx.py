@@ -804,13 +804,11 @@ def server_chan_send(msg):
 def local_run():
 
     if not os.path.exists(activeid_path):
-
         with open(
             activeid_path,
             'w',
             encoding='utf-8'
         ) as f:
-
             f.write("")
 
     print("====================================")
@@ -823,24 +821,12 @@ def local_run():
         user_info.get('schoolid')
     )
 
-    # 如果没有登录Cookie，直接停止
-    try:
-
-        test = s.session.get(
-            "https://i.chaoxing.com/base",
-            allow_redirects=False,
-            timeout=15
-        )
-
-        if test.status_code in (301, 302, 303, 307, 308):
-
-            print("当前登录状态无效")
-            return "登录失败"
-
-    except Exception:
-
-        print("登录状态检查失败")
+    # 如果登录过程中没有获取到Cookie，则停止
+    if not s.session.cookies.get_dict():
+        print("未获取到学习通Cookie")
         return "登录失败"
+
+    print("学习通登录状态正常，开始获取课程...")
 
     result = s.sign_tasks_run()
 
@@ -849,7 +835,6 @@ def local_run():
         print("发现 {} 个签到结果".format(len(result)))
 
         if server_chan['status']:
-
             server_chan_send(result)
 
         return result
@@ -862,5 +847,4 @@ def local_run():
 
 
 if __name__ == '__main__':
-
     print(local_run())
