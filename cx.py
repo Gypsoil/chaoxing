@@ -301,40 +301,168 @@ class AutoSign(object):
     # 获取课程
     # =========================================================
 
+        # =========================================================
+    # 获取课程
+    # =========================================================
+
     def get_all_classid(self):
 
-        re_rule = (
-            r'<li style="position:relative">[\s]*'
-            r'<input type="hidden" name="courseId" value="(.*)" />[\s].*'
-            r'<input type="hidden" name="classId" value="(.*)" />[\s].*'
-            r'[\s].*[\s].*[\s].*[\s].*[\s].*[\s].*[\s].*'
-            r'[\s].*[s].*[\s]*[\s].*[\s].*[\s].*[\s].*'
-            r'<a  href=\'.*\' target="_blank" title=".*">(.*)</a>'
-        )
+        url = "https://mooc1-2.chaoxing.com/visit/interaction"
 
         try:
-
             r = self.session.get(
-                'https://mooc1-2.chaoxing.com/visit/interaction',
-                headers=self.headers,
+                url,
+                headers={
+                    **self.headers,
+                    "Referer": "https://i.chaoxing.com/"
+                },
+                allow_redirects=True,
+                verify=False,
                 timeout=20
             )
 
-            res = re.findall(re_rule, r.text)
+            print("课程列表接口状态码：{}".format(r.status_code))
+            print("课程列表最终URL：{}".format(r.url))
 
-            print("获取到课程数量：{}".format(len(res)))
+            # 如果被重新定向到登录页面
+            if "login" in r.url.lower():
+                print("课程列表请求被重定向到登录页面")
+                return []
 
-            return res
+            html = r.text
+
+            # -------------------------------------------------
+            # 新版/不同HTML格式的通用解析
+            # -------------------------------------------------
+
+            pattern = re.compile(
+                r'<input[^>]+name=["\']courseId["\'][^>]+'
+                r'value=["\']([^"\']+)["\'][^>]*>'
+                r'.{0,3000}?'
+                r'<input[^>]+name=["\']classId["\'][^>]+'
+                r'value=["\']([^"\']+)["\'][^>]*>',
+                re.I | re.S
+            )
+
+            matches = pattern.findall(html)
+
+            result = []
+
+            for courseid, classid in matches:
+
+                # 尝试在附近寻找课程名称
+                classname = "未知课程"
+
+                # 找到当前 classId 附近的HTML
+                class_pos = html.find(
+                    'value="{}"'.format(classid)
+                )
+
+                if class_pos == -1:
+                    class_pos = html.find(
+                        "value='{}'".format(classid)
+                    )
+
+                if class_pos != -1:
+
+                    nearby = html[
+                        max(0, class_pos - 1500):
+                        class_pos + 3000
+                    ]
+
+                    title_match = re.search(
+                        r'<a[^>]+title=["\']([^"\']+)["\']',
+                        nearby,
+                        re.I
+                    )
+
+                    if title_match:
+                        classname = title_match.group(1).strip()
+
+                result.append(
+                    (
+                        courseid,
+                        classid,
+                        classname
+                    )
+                )
+
+            # 去重
+            unique_result = []
+
+            seen = set()
+
+            for item in result:
+
+                key = (
+                    str(item[0]),
+                    str(item[1])
+                )
+
+                if key not in seen:
+
+                    seen.add(key)
+                    unique_result.append(item)
+
+            print(
+                "获取到课程数量：{}".format(
+                    len(unique_result)
+                )
+            )
+
+            # 调试：如果还是0，打印网页的一些基本信息
+            if not unique_result:
+
+                print(
+                    "课程页面HTML长度：{}".format(
+                        len(html)
+                    )
+                )
+
+                print(
+                    "课程页面标题：{}".format(
+                        re.findall(
+                            r"<title[^>]*>(.*?)</title>",
+                            html,
+                            re.I | re.S
+                        )[:1]
+                    )
+                )
+
+                # 不打印整个HTML，避免日志过长
+                print(
+                    "课程页面前500字符：{}".format(
+                        re.sub(
+                            r"\s+",
+                            " ",
+                            html[:500]
+                        )
+                    )
+                )
+
+            return unique_result
+
+        except requests.RequestException as e:
+
+            print("获取课程网络请求失败")
+            print(
+                "错误类型：{}".format(
+                    type(e).__name__
+                )
+            )
+
+            return []
 
         except Exception as e:
 
             print("获取课程失败")
-            print("错误类型：{}".format(type(e).__name__))
+            print(
+                "错误类型：{}".format(
+                    type(e).__name__
+                )
+            )
 
             return []
-
-    # =========================================================
-    # 获取签到任务
     # =========================================================
 
     async def get_activeid(self, classid, courseid, classname):
