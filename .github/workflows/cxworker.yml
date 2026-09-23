@@ -3,10 +3,8 @@ name: 'chaoxing'
 
 on:
   push:
-    branches: 
+    branches:
       - master
-  schedule:
-    - cron: '*/5 * * * *'
   workflow_dispatch:
     
 jobs:
