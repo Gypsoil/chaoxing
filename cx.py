@@ -297,7 +297,7 @@ class AutoSign(object):
 
         return False
 
-    # =========================================================
+        # =========================================================
     # 获取课程
     # =========================================================
 
@@ -323,41 +323,83 @@ class AutoSign(object):
                 timeout=20
             )
 
-            print("课程API状态码：{}".format(r.status_code))
-            print("课程API最终URL：{}".format(r.url))
+            print(
+                "课程API状态码：{}".format(
+                    r.status_code
+                )
+            )
+
+            print(
+                "课程API最终URL：{}".format(
+                    r.url
+                )
+            )
 
             if r.status_code != 200:
+
                 print("课程API请求失败")
+
                 return []
 
-            data = r.json()
+            try:
 
-            channel_list = data.get("channelList", [])
+                data = r.json()
+
+            except Exception:
+
+                print("课程API返回内容不是JSON")
+
+                return []
+
+            channel_list = data.get(
+                "channelList",
+                []
+            )
+
+            print(
+                "课程API channelList数量：{}".format(
+                    len(channel_list)
+                )
+            )
 
             result = []
 
             for item in channel_list:
 
-                content = item.get("content", {})
-                course = content.get("course")
+                content = item.get(
+                    "content",
+                    {}
+                )
+
+                course = content.get(
+                    "course"
+                )
 
                 if not course:
                     continue
 
-                course_data = course.get("data", [])
+                course_data = course.get(
+                    "data",
+                    []
+                )
 
                 if not course_data:
                     continue
 
                 course_info = course_data[0]
 
-                courseid = course_info.get("id")
+                courseid = course_info.get(
+                    "id"
+                )
+
                 classname = course_info.get(
                     "name",
                     "未知课程"
                 )
 
-                classid = item.get("key")
+                classid = item.get(
+                    "key"
+                )
 
                 if courseid and classid:
 
@@ -371,6 +413,7 @@ class AutoSign(object):
 
             # 去重
             unique_result = []
+
             seen = set()
 
             for item in result:
@@ -383,7 +426,10 @@ class AutoSign(object):
                 if key not in seen:
 
                     seen.add(key)
-                    unique_result.append(item)
+
+                    unique_result.append(
+                        item
+                    )
 
             print(
                 "获取到课程数量：{}".format(
@@ -391,7 +437,11 @@ class AutoSign(object):
                 )
             )
 
-            for courseid, classid, classname in unique_result:
+            for (
+                courseid,
+                classid,
+                classname
+            ) in unique_result:
 
                 print(
                     "课程：{} | courseId={} | classId={}".format(
@@ -405,7 +455,10 @@ class AutoSign(object):
 
         except requests.RequestException as e:
 
-            print("课程API网络请求失败")
+            print(
+                "课程API网络请求失败"
+            )
+
             print(
                 "错误类型：{}".format(
                     type(e).__name__
@@ -416,7 +469,10 @@ class AutoSign(object):
 
         except Exception as e:
 
-            print("解析课程API失败")
+            print(
+                "解析课程API失败"
+            )
+
             print(
                 "错误类型：{}".format(
                     type(e).__name__
@@ -424,6 +480,9 @@ class AutoSign(object):
             )
 
             return []
+
+    # =========================================================
+    # 获取签到活动
     # =========================================================
 
     async def get_activeid(self, classid, courseid, classname):
