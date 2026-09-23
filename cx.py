@@ -485,7 +485,7 @@ class AutoSign(object):
     # 获取签到活动
     # =========================================================
 
-        async def get_activeid(self, classid, courseid, classname):
+    async def get_activeid(self, classid, courseid, classname):
 
         try:
 
