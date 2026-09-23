@@ -485,16 +485,7 @@ class AutoSign(object):
     # 获取签到活动
     # =========================================================
 
-    async def get_activeid(self, classid, courseid, classname):
-
-        re_rule = (
-            r'<div class="Mct" onclick="activeDetail\((.*),2,null\)">'
-            r'[\s].*[\s].*[\s].*[\s].*'
-            r'<dd class="green">.*</dd>'
-            r'[\s]+[\s]</a>[\s]+</dl>'
-            r'[\s]+<div class="Mct_center wid660 fl">'
-            r'[\s]+<a href="javascript:;" shape="rect">(.*)</a>'
-        )
+        async def get_activeid(self, classid, courseid, classname):
 
         try:
 
@@ -510,9 +501,55 @@ class AutoSign(object):
                 timeout=20
             )
 
-            res = re.findall(re_rule, r.text)
+            print(
+                "检查课程：{} | 状态码：{}".format(
+                    classname,
+                    r.status_code
+                )
+            )
+
+            # 页面标题
+            title_list = re.findall(
+                r'<title>(.*?)</title>',
+                r.text,
+                re.S
+            )
+
+            if title_list:
+
+                print(
+                    "页面标题：{}".format(
+                        title_list[0].strip()
+                    )
+                )
+
+            # =====================================================
+            # 先尝试原来的签到活动匹配方式
+            # =====================================================
+
+            re_rule = (
+                r'<div class="Mct" onclick="activeDetail\((.*),2,null\)">'
+                r'[\s\S]*?'
+                r'<dd class="green">.*?</dd>'
+                r'[\s\S]*?'
+                r'<div class="Mct_center wid660 fl">'
+                r'[\s\S]*?'
+                r'<a href="javascript:;" shape="rect">(.*?)</a>'
+            )
+
+            res = re.findall(
+                re_rule,
+                r.text
+            )
 
             if res:
+
+                print(
+                    "发现签到活动：{} / {}".format(
+                        classname,
+                        res[0][1]
+                    )
+                )
 
                 return {
                     'classid': classid,
@@ -522,10 +559,28 @@ class AutoSign(object):
                     'sign_type': res[0][1]
                 }
 
-        except Exception:
+            # =====================================================
+            # 原正则没有匹配到
+            # =====================================================
+
+            print(
+                "未匹配到签到活动：{}".format(
+                    classname
+                )
+            )
+
             return None
 
-        return None
+        except Exception as e:
+
+            print(
+                "检查课程失败：{} | {}".format(
+                    classname,
+                    type(e).__name__
+                )
+            )
+
+            return None
 
     # =========================================================
     # 普通签到
