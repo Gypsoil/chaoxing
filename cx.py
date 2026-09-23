@@ -511,7 +511,31 @@ class AutoSign(object):
             if r.status_code != 200:
                 return None
 
-            html = r.text
+            html = r.text            
+            
+            # 调试：查找页面中与签到相关的关键内容
+            for keyword in ["签到", "activeDetail", "activeId", "signType"]:
+
+                pos = html.find(keyword)
+
+                if pos != -1:
+
+                    print(
+                        "发现关键词：{}，位置：{}".format(
+                            keyword,
+                            pos
+                        )
+                    )
+
+                    print(
+                        "附近内容：{}".format(
+                            re.sub(
+                                r'\s+',
+                                ' ',
+                                html[max(0, pos - 300):pos + 700]
+                            )[:1000]
+                        )
+                    )
 
             # 查找页面中的 activeId
             active_ids = re.findall(
