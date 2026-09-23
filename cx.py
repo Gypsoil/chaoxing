@@ -307,162 +307,126 @@ class AutoSign(object):
 
     def get_all_classid(self):
 
-        url = "https://mooc1-2.chaoxing.com/visit/interaction"
+    url = "https://mooc1-api.chaoxing.com/mycourse/backclazzdata"
 
-        try:
-            r = self.session.get(
-                url,
-                headers={
-                    **self.headers,
-                    "Referer": "https://i.chaoxing.com/"
-                },
-                allow_redirects=True,
-                verify=False,
-                timeout=20
-            )
+    params = {
+        "view": "json",
+        "mcode": ""
+    }
 
-            print("课程列表接口状态码：{}".format(r.status_code))
-            print("课程列表最终URL：{}".format(r.url))
+    try:
 
-            # 如果被重新定向到登录页面
-            if "login" in r.url.lower():
-                print("课程列表请求被重定向到登录页面")
-                return []
+        r = self.session.get(
+            url,
+            params=params,
+            headers={
+                **self.headers,
+                "Referer": "https://i.chaoxing.com/"
+            },
+            verify=False,
+            timeout=20
+        )
 
-            html = r.text
+        print("课程API状态码：{}".format(r.status_code))
+        print("课程API最终URL：{}".format(r.url))
 
-            # -------------------------------------------------
-            # 新版/不同HTML格式的通用解析
-            # -------------------------------------------------
+        if r.status_code != 200:
+            print("课程API请求失败")
+            return []
 
-            pattern = re.compile(
-                r'<input[^>]+name=["\']courseId["\'][^>]+'
-                r'value=["\']([^"\']+)["\'][^>]*>'
-                r'.{0,3000}?'
-                r'<input[^>]+name=["\']classId["\'][^>]+'
-                r'value=["\']([^"\']+)["\'][^>]*>',
-                re.I | re.S
-            )
+        data = r.json()
 
-            matches = pattern.findall(html)
+        channel_list = data.get("channelList", [])
 
-            result = []
+        result = []
 
-            for courseid, classid in matches:
+        for item in channel_list:
 
-                # 尝试在附近寻找课程名称
-                classname = "未知课程"
+            content = item.get("content", {})
 
-                # 找到当前 classId 附近的HTML
-                class_pos = html.find(
-                    'value="{}"'.format(classid)
-                )
+            course = content.get("course")
 
-                if class_pos == -1:
-                    class_pos = html.find(
-                        "value='{}'".format(classid)
-                    )
+            if not course:
+                continue
 
-                if class_pos != -1:
+            course_data = course.get("data", [])
 
-                    nearby = html[
-                        max(0, class_pos - 1500):
-                        class_pos + 3000
-                    ]
+            if not course_data:
+                continue
 
-                    title_match = re.search(
-                        r'<a[^>]+title=["\']([^"\']+)["\']',
-                        nearby,
-                        re.I
-                    )
+            course_info = course_data[0]
 
-                    if title_match:
-                        classname = title_match.group(1).strip()
+            courseid = course_info.get("id")
+            classname = course_info.get("name", "未知课程")
+
+            classid = item.get("key")
+
+            if courseid and classid:
 
                 result.append(
                     (
-                        courseid,
-                        classid,
+                        str(courseid),
+                        str(classid),
                         classname
                     )
                 )
 
-            # 去重
-            unique_result = []
+        # 去重
+        unique_result = []
 
-            seen = set()
+        seen = set()
 
-            for item in result:
+        for item in result:
 
-                key = (
-                    str(item[0]),
-                    str(item[1])
-                )
+            key = (
+                item[0],
+                item[1]
+            )
 
-                if key not in seen:
+            if key not in seen:
 
-                    seen.add(key)
-                    unique_result.append(item)
+                seen.add(key)
+                unique_result.append(item)
+
+        print(
+            "获取到课程数量：{}".format(
+                len(unique_result)
+            )
+        )
+
+        for courseid, classid, classname in unique_result:
 
             print(
-                "获取到课程数量：{}".format(
-                    len(unique_result)
+                "课程：{} | courseId={} | classId={}".format(
+                    classname,
+                    courseid,
+                    classid
                 )
             )
 
-            # 调试：如果还是0，打印网页的一些基本信息
-            if not unique_result:
+        return unique_result
 
-                print(
-                    "课程页面HTML长度：{}".format(
-                        len(html)
-                    )
-                )
+    except requests.RequestException as e:
 
-                print(
-                    "课程页面标题：{}".format(
-                        re.findall(
-                            r"<title[^>]*>(.*?)</title>",
-                            html,
-                            re.I | re.S
-                        )[:1]
-                    )
-                )
-
-                # 不打印整个HTML，避免日志过长
-                print(
-                    "课程页面前500字符：{}".format(
-                        re.sub(
-                            r"\s+",
-                            " ",
-                            html[:500]
-                        )
-                    )
-                )
-
-            return unique_result
-
-        except requests.RequestException as e:
-
-            print("获取课程网络请求失败")
-            print(
-                "错误类型：{}".format(
-                    type(e).__name__
-                )
+        print("课程API网络请求失败")
+        print(
+            "错误类型：{}".format(
+                type(e).__name__
             )
+        )
 
-            return []
+        return []
 
-        except Exception as e:
+    except Exception as e:
 
-            print("获取课程失败")
-            print(
-                "错误类型：{}".format(
-                    type(e).__name__
-                )
+        print("解析课程API失败")
+        print(
+            "错误类型：{}".format(
+                type(e).__name__
             )
+        )
 
-            return []
+        return []
     # =========================================================
 
     async def get_activeid(self, classid, courseid, classname):
