@@ -511,117 +511,63 @@ class AutoSign(object):
             if r.status_code != 200:
                 return None
 
-            html = r.text            
-            
-            # 调试：查找页面中与签到相关的关键内容
-            for keyword in ["签到", "activeDetail", "activeId", "signType"]:
+            html = r.text
 
-                pos = html.find(keyword)
+            # 只截取“进行中”区域
+            start_pos = html.find('id="startList"')
 
-                if pos != -1:
+            if start_pos == -1:
+                print("未找到进行中活动区域：{}".format(classname))
+                return None
 
-                    print(
-                        "发现关键词：{}，位置：{}".format(
-                            keyword,
-                            pos
-                        )
-                    )
+            end_pos = html.find('id="endList"', start_pos)
 
-                    print(
-                        "附近内容：{}".format(
-                            re.sub(
-                                r'\s+',
-                                ' ',
-                                html[max(0, pos - 300):pos + 700]
-                            )[:1000]
-                        )
-                    )
+            if end_pos == -1:
+                end_pos = len(html)
 
-            # 查找页面中的 activeId
-            active_ids = re.findall(
-                r'activeId[\'"\s:=]+(\d+)',
-                html,
+            active_html = html[start_pos:end_pos]
+
+            # 查找进行中的签到活动
+            pattern = (
+                r'onclick="activeDetail\((\d+),(\d+),null\)"'
+                r'[\s\S]*?'
+                r'<dd[^>]*>\s*签到\s*</dd>'
+                r'[\s\S]*?'
+                r'<a[^>]*>(.*?)</a>'
+            )
+
+            matches = re.findall(
+                pattern,
+                active_html,
                 re.I
             )
 
-            # 查找签到相关关键词
-            sign_keywords = [
-                "签到",
-                "手势签到",
-                "二维码签到",
-                "位置签到",
-                "签到码"
-            ]
-
-            has_sign = any(
-                keyword in html
-                for keyword in sign_keywords
-            )
-
-            print(
-                "页面活动数据：activeId={} | 含签到关键词={}".format(
-                    len(active_ids),
-                    has_sign
+            if not matches:
+                print(
+                    "当前没有进行中的签到：{}".format(
+                        classname
+                    )
                 )
-            )
-
-            if not active_ids:
                 return None
 
-            # 去重
-            unique_ids = []
-
-            for active_id in active_ids:
-
-                if active_id not in unique_ids:
-                    unique_ids.append(active_id)
+            activeid = matches[0][0]
+            sign_type = matches[0][2].strip()
 
             print(
-                "发现活动ID：{} | 课程：{}".format(
-                    unique_ids[:10],
-                    classname
+                "发现进行中的签到：{} | activeId={} | 类型={}".format(
+                    classname,
+                    activeid,
+                    sign_type
                 )
             )
 
-            # 尝试寻找签到活动
-            for active_id in unique_ids:
-
-                # 检查该 activeId 附近是否存在签到相关内容
-                pattern = (
-                    r'.{0,300}'
-                    + re.escape(active_id)
-                    + r'.{0,500}'
-                )
-
-                matches = re.findall(
-                    pattern,
-                    html,
-                    re.S | re.I
-                )
-
-                for match in matches:
-
-                    if any(
-                        keyword in match
-                        for keyword in sign_keywords
-                    ):
-
-                        print(
-                            "发现疑似签到活动：{} | activeId={}".format(
-                                classname,
-                                active_id
-                            )
-                        )
-
-                        return {
-                            'classid': classid,
-                            'courseid': courseid,
-                            'activeid': active_id,
-                            'classname': classname,
-                            'sign_type': '签到'
-                        }
-
-            return None
+            return {
+                'classid': classid,
+                'courseid': courseid,
+                'activeid': activeid,
+                'classname': classname,
+                'sign_type': sign_type
+            }
 
         except Exception as e:
 
