@@ -301,132 +301,129 @@ class AutoSign(object):
     # 获取课程
     # =========================================================
 
-        # =========================================================
-    # 获取课程
-    # =========================================================
-
     def get_all_classid(self):
 
-    url = "https://mooc1-api.chaoxing.com/mycourse/backclazzdata"
+        url = "https://mooc1-api.chaoxing.com/mycourse/backclazzdata"
 
-    params = {
-        "view": "json",
-        "mcode": ""
-    }
+        params = {
+            "view": "json",
+            "mcode": ""
+        }
 
-    try:
+        try:
 
-        r = self.session.get(
-            url,
-            params=params,
-            headers={
-                **self.headers,
-                "Referer": "https://i.chaoxing.com/"
-            },
-            verify=False,
-            timeout=20
-        )
+            r = self.session.get(
+                url,
+                params=params,
+                headers={
+                    **self.headers,
+                    "Referer": "https://i.chaoxing.com/"
+                },
+                verify=False,
+                timeout=20
+            )
 
-        print("课程API状态码：{}".format(r.status_code))
-        print("课程API最终URL：{}".format(r.url))
+            print("课程API状态码：{}".format(r.status_code))
+            print("课程API最终URL：{}".format(r.url))
 
-        if r.status_code != 200:
-            print("课程API请求失败")
-            return []
+            if r.status_code != 200:
+                print("课程API请求失败")
+                return []
 
-        data = r.json()
+            data = r.json()
 
-        channel_list = data.get("channelList", [])
+            channel_list = data.get("channelList", [])
 
-        result = []
+            result = []
 
-        for item in channel_list:
+            for item in channel_list:
 
-            content = item.get("content", {})
+                content = item.get("content", {})
+                course = content.get("course")
 
-            course = content.get("course")
+                if not course:
+                    continue
 
-            if not course:
-                continue
+                course_data = course.get("data", [])
 
-            course_data = course.get("data", [])
+                if not course_data:
+                    continue
 
-            if not course_data:
-                continue
+                course_info = course_data[0]
 
-            course_info = course_data[0]
+                courseid = course_info.get("id")
+                classname = course_info.get(
+                    "name",
+                    "未知课程"
+                )
 
-            courseid = course_info.get("id")
-            classname = course_info.get("name", "未知课程")
+                classid = item.get("key")
 
-            classid = item.get("key")
+                if courseid and classid:
 
-            if courseid and classid:
+                    result.append(
+                        (
+                            str(courseid),
+                            str(classid),
+                            classname
+                        )
+                    )
 
-                result.append(
-                    (
-                        str(courseid),
-                        str(classid),
-                        classname
+            # 去重
+            unique_result = []
+            seen = set()
+
+            for item in result:
+
+                key = (
+                    item[0],
+                    item[1]
+                )
+
+                if key not in seen:
+
+                    seen.add(key)
+                    unique_result.append(item)
+
+            print(
+                "获取到课程数量：{}".format(
+                    len(unique_result)
+                )
+            )
+
+            for courseid, classid, classname in unique_result:
+
+                print(
+                    "课程：{} | courseId={} | classId={}".format(
+                        classname,
+                        courseid,
+                        classid
                     )
                 )
 
-        # 去重
-        unique_result = []
+            return unique_result
 
-        seen = set()
+        except requests.RequestException as e:
 
-        for item in result:
-
-            key = (
-                item[0],
-                item[1]
-            )
-
-            if key not in seen:
-
-                seen.add(key)
-                unique_result.append(item)
-
-        print(
-            "获取到课程数量：{}".format(
-                len(unique_result)
-            )
-        )
-
-        for courseid, classid, classname in unique_result:
-
+            print("课程API网络请求失败")
             print(
-                "课程：{} | courseId={} | classId={}".format(
-                    classname,
-                    courseid,
-                    classid
+                "错误类型：{}".format(
+                    type(e).__name__
                 )
             )
 
-        return unique_result
+            return []
 
-    except requests.RequestException as e:
+        except Exception as e:
 
-        print("课程API网络请求失败")
-        print(
-            "错误类型：{}".format(
-                type(e).__name__
+            print("解析课程API失败")
+            print(
+                "错误类型：{}".format(
+                    type(e).__name__
+                )
             )
-        )
 
-        return []
-
-    except Exception as e:
-
-        print("解析课程API失败")
-        print(
-            "错误类型：{}".format(
-                type(e).__name__
-            )
-        )
-
-        return []
+            return []
     # =========================================================
 
     async def get_activeid(self, classid, courseid, classname):
