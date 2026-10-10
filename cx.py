@@ -687,7 +687,6 @@ class AutoSign(object):
     # 二维码签到
     # =========================================================
 
-    ```python
     def qcode_sign(self, activeId):
 
         params = {
