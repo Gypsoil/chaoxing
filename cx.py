@@ -687,6 +687,7 @@ class AutoSign(object):
     # 二维码签到
     # =========================================================
 
+    ```python
     def qcode_sign(self, activeId):
 
         params = {
@@ -702,25 +703,37 @@ class AutoSign(object):
         }
 
         try:
-
             res = self.session.get(
                 'https://mobilelearn.chaoxing.com/pptSign/stuSignajax',
                 params=params,
                 timeout=20
             )
 
+            print("二维码签到HTTP状态码：{}".format(
+                res.status_code
+            ))
+            print("二维码签到响应类型：{}".format(
+                res.headers.get("Content-Type", "")
+            ))
+            print("二维码签到响应内容：{}".format(
+                res.text[:500]
+            ))
+
             return {
                 'date': time.strftime("%m-%d %H:%M"),
                 'status': res.text
             }
 
-        except Exception:
+        except Exception as e:
+            print("二维码签到请求异常：{}".format(
+                type(e).__name__
+            ))
 
             return {
                 'date': time.strftime("%m-%d %H:%M"),
                 'status': '二维码签到请求异常'
             }
-
+```
     # =========================================================
     # 位置签到
     # =========================================================
